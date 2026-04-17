@@ -1,7 +1,7 @@
-# =============================
+
 #  TASA DE REPITENCIA - Colab
 #  Serie 2019-2023 por región
-# =============================
+
 from google.colab import files
 import io, re, unicodedata
 import numpy as np
