@@ -32,29 +32,31 @@ Este código fue fundamental para confirmar la hipótesis de que las políticas 
 
 <img width="1665" height="825" alt="image" src="https://github.com/user-attachments/assets/b69fce14-88f5-45b9-a25e-4c26770b82ec" />
 
+s probable que GitHub no esté renderizando la tabla porque falta un espacio o una línea en blanco antes del código de la tabla. En los archivos .md (Markdown), esto es fundamental para que el sistema reconozca el formato.
 
-Año escolar,Región,Tasa de Repitencia (%)
-2019-2020,Cuyo,5.12
-2019-2020,Gran Buenos Aires,5.88
-2019-2020,Noreste,8.00
-2019-2020,Noroeste,8.09
-2019-2020,Pampeana,8.94
-2019-2020,Patagonia,6.03
-2020-2021,Cuyo,4.44
-2020-2021,Gran Buenos Aires,5.05
-2020-2021,Noreste,6.84
-2020-2021,Noroeste,6.65
-2020-2021,Pampeana,7.15
-2020-2021,Patagonia,5.90
-2021-2022,Cuyo,1.80
-2021-2022,Gran Buenos Aires,0.06
-2021-2022,Noreste,3.96
-2021-2022,Noroeste,2.84
-2021-2022,Pampeana,4.53
-2021-2022,Patagonia,2.13
-2022-2023,Cuyo,6.75
-2022-2023,Gran Buenos Aires,8.62
-2022-2023,Noreste,9.24
-2022-2023,Noroeste,8.79
-2022-2023,Pampeana,10.13
-2022-2023,Patagonia,7.03
+
+Año escolar	Región	Tasa de Repitencia (%)
+2019-2020	Cuyo	5.12
+2019-2020	Gran Buenos Aires	5.88
+2019-2020	Noreste	8.00
+2019-2020	Noroeste	8.09
+2019-2020	Pampeana	8.94
+2019-2020	Patagonia	6.03
+2020-2021	Cuyo	4.44
+2020-2021	Gran Buenos Aires	5.05
+2020-2021	Noreste	6.84
+2020-2021	Noroeste	6.65
+2020-2021	Pampeana	7.15
+2020-2021	Patagonia	5.90
+2021-2022	Cuyo	1.80
+2021-2022	Gran Buenos Aires	0.06
+2021-2022	Noreste	3.96
+2021-2022	Noroeste	2.84
+2021-2022	Pampeana	4.53
+2021-2022	Patagonia	2.13
+2022-2023	Cuyo	6.75
+2022-2023	Gran Buenos Aires	8.62
+2022-2023	Noreste	9.24
+2022-2023	Noroeste	8.79
+2022-2023	Pampeana	10.13
+2022-2023	Patagonia	7.03
