@@ -1,0 +1,178 @@
+# =============================
+#  TASA DE REPITENCIA - Colab
+#  Serie 2019-2023 por región
+# =============================
+from google.colab import files
+import io, re, unicodedata
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+print("Subí el archivo TASA DE REPITENCIA.xlsx")
+up = files.upload()
+fname = list(up.keys())[0]
+
+# --------- Config ---------
+ANIOS_ORDEN = ["2019-2020","2020-2021","2021-2022","2022-2023"]
+FALLBACK_ANIO_HOJA = {0:"2019-2020", 1:"2020-2021", 2:"2021-2022", 3:"2022-2023"}
+REGIONES = ["Cuyo","Gran Buenos Aires","Noreste","Noroeste","Pampeana","Patagonia"]
+
+def norm_txt(s):
+    if s is None: return ""
+    s = str(s)
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("utf-8")
+    s = re.sub(r"\s+", " ", s.strip().lower())
+    return s
+
+# Mapeo provincia -> región con claves normalizadas
+provincia_a_region = {
+    "buenos aires": "Gran Buenos Aires",   # Provincia (si la tabla trae “buenos aires” como total provincial)
+    "conurbano": "Gran Buenos Aires",
+    "resto de bs as": "Gran Buenos Aires",
+    "ciudad de buenos aires": "Gran Buenos Aires",
+    "catamarca": "Noroeste",
+    "chaco": "Noreste",
+    "chubut": "Patagonia",
+    "cordoba": "Pampeana",
+    "corrientes": "Noreste",
+    "entre rios": "Pampeana",
+    "formosa": "Noreste",
+    "jujuy": "Noroeste",
+    "la pampa": "Pampeana",
+    "la rioja": "Cuyo",
+    "mendoza": "Cuyo",
+    "misiones": "Noreste",
+    "neuquen": "Patagonia",
+    "rio negro": "Patagonia",
+    "salta": "Noroeste",
+    "san juan": "Cuyo",
+    "san luis": "Cuyo",
+    "santa cruz": "Patagonia",
+    "santa fe": "Pampeana",
+    "santiago del estero": "Noroeste",
+    "tierra del fuego": "Patagonia",
+    "tucuman": "Noroeste",
+    # variantes útiles
+    "tucumán": "Noroeste",
+    "neuquén": "Patagonia",
+}
+
+def detectar_anio_en_texto(txt):
+    t = norm_txt(txt).replace("/", "-")
+    m = re.search(r"(20\d{2})\s*-\s*(20\d{2})", t)
+    if m:
+        a,b = int(m.group(1)), int(m.group(2))
+        if b == a+1:
+            return f"{a}-{b}"
+    m = re.search(r"\b(20\d{2})\b", t)
+    if m:
+        a = int(m.group(1)); return f"{a}-{a+1}"
+    return None
+
+def detectar_col_provincia(columns):
+    # preferimos 'Unnamed: 0'; si no, la primera columna
+    for c in columns:
+        if str(c).startswith("Unnamed: 0"):
+            return c
+    return columns[0]
+
+def detectar_col_secundaria(df):
+    # buscamos 'Total.1' o columnas con 'total' y valores numéricos
+    preferidas = [c for c in df.columns if str(c).strip().lower() in ["total.1","secundaria_total","secundaria total","secundaria - total"]]
+    if preferidas:
+        return preferidas[0]
+    candidatos = []
+    for c in df.columns:
+        if re.search(r"\btotal\b", str(c).lower()):
+            s = pd.to_numeric(df[c], errors="coerce")
+            if s.notna().mean() > 0.4:
+                candidatos.append(c)
+    if candidatos:
+        return candidatos[0]
+    # última chance: la columna con mayor proporción numérica (evitando la provincia)
+    ratios = {c: pd.to_numeric(df[c], errors="coerce").notna().mean() for c in df.columns[1:]}
+    return max(ratios, key=ratios.get)
+
+# --------- Leer y apilar todas las hojas ---------
+xls = pd.ExcelFile(io.BytesIO(up[fname]))
+tidy = []
+
+for i, sh in enumerate(xls.sheet_names):
+    # Tus archivos traen el encabezado útil en fila 4 (index 3) y se salta la 5 (index 4)
+    df = pd.read_excel(io.BytesIO(up[fname]), sheet_name=sh, header=3, skiprows=[4])
+    # columnas mínimo-limpias
+    df.columns = [str(c) for c in df.columns]
+
+    col_prov = detectar_col_provincia(df.columns)
+    col_sec  = detectar_col_secundaria(df)
+
+    # depurar columna de provincia y la de valores
+    tmp = df[[col_prov, col_sec]].copy()
+    tmp.columns = ["Provincia", "Secundaria_Total"]
+
+    # descartar filas sin provincia o totales país
+    tmp["Provincia_norm"] = tmp["Provincia"].astype(str).map(norm_txt)
+    tmp = tmp[~tmp["Provincia_norm"].isin(["", "total pais", "total país", "total pais (promedio)", "total pais promedio"])]
+
+    # a numérico
+    tmp["Secundaria_Total"] = pd.to_numeric(tmp["Secundaria_Total"].astype(str).str.replace(",", "."), errors="coerce")
+    tmp = tmp.dropna(subset=["Secundaria_Total"])
+
+    # mapear provincia -> región
+    def map_region(p):
+        p_n = norm_txt(p)
+        # matcheo exacto por clave
+        if p_n in provincia_a_region:
+            return provincia_a_region[p_n]
+        # intentos suaves (p.ej., “resto de bs as ….”)
+        for k,v in provincia_a_region.items():
+            if p_n.startswith(k):
+                return v
+        return None
+
+    tmp["Region"] = tmp["Provincia"].map(map_region)
+    tmp = tmp.dropna(subset=["Region"])
+
+    # detectar año dentro de la hoja o fallback por posición
+    anio = detectar_anio_en_texto(sh) or detectar_anio_en_texto(" ".join(map(str, df.columns))) or FALLBACK_ANIO_HOJA.get(i)
+    tmp["Año escolar"] = anio
+
+    # quedarnos con lo necesario
+    tidy.append(tmp[["Año escolar","Region","Secundaria_Total"]])
+
+if not tidy:
+    raise ValueError("No pude estructurar ninguna hoja. Revisemos nombres de columnas si aparece este mensaje.")
+
+base = pd.concat(tidy, ignore_index=True)
+base = base[base["Año escolar"].isin(ANIOS_ORDEN) & base["Region"].isin(REGIONES)]
+
+# agregación región-año (promedio; cambiá a .sum() si lo preferís)
+res = (base.groupby(["Año escolar","Region"], as_index=False)["Secundaria_Total"]
+            .mean()
+            .rename(columns={"Secundaria_Total":"Tasa"}))
+
+# ordenar años
+res["Año escolar"] = pd.Categorical(res["Año escolar"], categories=ANIOS_ORDEN, ordered=True)
+res = res.sort_values(["Año escolar","Region"])
+
+# --------- Plot estilo “líneas por región” ---------
+plt.figure(figsize=(12, 6), dpi=140)
+sns.set_style("whitegrid")
+
+for reg in REGIONES:
+    sub = res[res["Region"]==reg].sort_values("Año escolar")
+    if sub.empty:
+        continue
+    plt.plot(sub["Año escolar"].astype(str), sub["Tasa"], marker="o", label=reg)
+
+plt.title("Tasa de Repitencia en Educación Secundaria por Región (2019-2023)")
+plt.xlabel("Año Escolar")
+plt.ylabel("Tasa de Repitencia (%)")
+plt.legend(title="Región", ncol=2, fontsize=9)
+plt.tight_layout()
+plt.savefig("repitencia_regiones_2019_2023.png")
+plt.show()
+
+# (Opcional) ver la tabla final
+res.reset_index(drop=True)
